@@ -1,0 +1,1277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Y2K :: iPod Web Player</title>
+  <!-- jsmediatags for ID3 parsing -->
+  <script src="https://cdn.jsdelivr.net/npm/jsmediatags@3.9.5/dist/jsmediatags.min.js"></script>
+  <style>
+    /* ========== Y2K AESTHETIC RESET ========== */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'MS Sans Serif', 'Tahoma', 'Verdana', 'Geneva', sans-serif;
+      background: #0a0a1a;
+      background-image: 
+        radial-gradient(circle at 20% 30%, #1a1a3a 0%, transparent 50%),
+        radial-gradient(circle at 80% 70%, #1a1a4a 0%, transparent 50%),
+        repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,255,255,0.03) 2px, rgba(0,255,255,0.03) 4px),
+        repeating-linear-gradient(90deg, transparent, transparent 2px, rgba(255,0,255,0.03) 2px, rgba(255,0,255,0.03) 4px);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #00ffcc;
+      padding: 20px;
+      overflow-x: hidden;
+    }
+
+    /* Y2K chrome text effect */
+    .chrome-text {
+      background: linear-gradient(
+        180deg,
+        #f8f8f8 0%,
+        #b9c4cc 28%,
+        #5d6a75 46%,
+        #ffffff 52%,
+        #8e9aa5 58%,
+        #d8dee3 78%,
+        #6f7b86 100%
+      );
+      background-clip: text;
+      -webkit-background-clip: text;
+      color: transparent;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      text-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
+    }
+
+    /* ========== MAIN LAYOUT ========== */
+    .app-container {
+      width: 100%;
+      max-width: 900px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 30px;
+    }
+
+    .header {
+      text-align: center;
+      width: 100%;
+    }
+
+    .header h1 {
+      font-size: clamp(2rem, 6vw, 3.5rem);
+      margin-bottom: 8px;
+      font-family: 'Impact', 'Arial Black', sans-serif;
+      text-transform: uppercase;
+      letter-spacing: 4px;
+      animation: chromeGlow 3s ease-in-out infinite;
+    }
+
+    @keyframes chromeGlow {
+      0%, 100% { filter: drop-shadow(0 0 10px rgba(0, 255, 255, 0.4)); }
+      50% { filter: drop-shadow(0 0 25px rgba(0, 255, 255, 0.8)); }
+    }
+
+    .header .subtitle {
+      font-size: 12px;
+      color: #ff00ff;
+      letter-spacing: 6px;
+      text-transform: uppercase;
+      font-family: 'Courier New', monospace;
+    }
+
+    /* ========== IPOD BODY ========== */
+    .ipod {
+      width: 380px;
+      max-width: 100%;
+      background: linear-gradient(180deg, #e8e8e8 0%, #d0d0d0 50%, #c0c0c0 100%);
+      border-radius: 30px;
+      padding: 25px 25px 35px;
+      box-shadow: 
+        0 10px 40px rgba(0, 0, 0, 0.8),
+        inset 0 2px 4px rgba(255, 255, 255, 0.9),
+        inset 0 -4px 8px rgba(0, 0, 0, 0.2),
+        0 0 60px rgba(0, 255, 255, 0.15);
+      border: 3px solid #a0a0a0;
+      position: relative;
+    }
+
+    /* iPod screen */
+    .ipod-screen {
+      background: linear-gradient(180deg, #1a2a1a 0%, #0d1a0d 100%);
+      border-radius: 10px;
+      padding: 16px 18px;
+      margin-bottom: 22px;
+      border: 3px solid #333;
+      box-shadow: 
+        inset 0 0 20px rgba(0, 255, 0, 0.1),
+        inset 0 2px 8px rgba(0, 0, 0, 0.8);
+      min-height: 220px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Scanline effect on screen */
+    .ipod-screen::after {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0, 255, 0, 0.03) 2px,
+        rgba(0, 255, 0, 0.03) 4px
+      );
+      pointer-events: none;
+    }
+
+    .screen-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid #2a4a2a;
+      padding-bottom: 8px;
+      margin-bottom: 12px;
+      font-size: 11px;
+      color: #00ff00;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      font-family: 'Courier New', monospace;
+    }
+
+    /* Song info area */
+    .song-info {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .album-art-container {
+      width: 80px;
+      height: 80px;
+      flex-shrink: 0;
+      background: #0a1a0a;
+      border: 2px solid #2a4a2a;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    .album-art-container img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .album-art-container .no-art {
+      font-size: 24px;
+      color: #1a3a1a;
+    }
+
+    .song-meta {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 4px;
+      min-width: 0;
+    }
+
+    .song-title {
+      font-size: 15px;
+      font-weight: bold;
+      color: #00ff00;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      font-family: 'Courier New', monospace;
+      text-shadow: 0 0 5px rgba(0, 255, 0, 0.5);
+    }
+
+    .song-artist {
+      font-size: 12px;
+      color: #00cc00;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      font-family: 'Courier New', monospace;
+    }
+
+    .song-album {
+      font-size: 10px;
+      color: #008800;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      font-family: 'Courier New', monospace;
+    }
+
+    /* Progress bar */
+    .progress-container {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+      font-size: 10px;
+      color: #00cc00;
+      font-family: 'Courier New', monospace;
+    }
+
+    .progress-bar {
+      flex: 1;
+      height: 6px;
+      background: #0a1a0a;
+      border: 1px solid #2a4a2a;
+      border-radius: 3px;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #00ff00, #00ccff);
+      border-radius: 3px;
+      width: 0%;
+      transition: width 0.1s linear;
+      box-shadow: 0 0 10px rgba(0, 255, 0, 0.6);
+    }
+
+    /* Status bar */
+    .status-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 10px;
+      color: #008800;
+      font-family: 'Courier New', monospace;
+      border-top: 1px solid #1a3a1a;
+      padding-top: 8px;
+    }
+
+    .status-bar .playing-indicator {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .status-bar .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #00ff00;
+      animation: blink 1s step-end infinite;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0; }
+    }
+
+    /* ========== CLICK WHEEL ========== */
+    .click-wheel {
+      width: 200px;
+      height: 200px;
+      margin: 0 auto;
+      background: radial-gradient(circle at 50% 50%, #f0f0f0 0%, #d8d8d8 60%, #c0c0c0 100%);
+      border-radius: 50%;
+      position: relative;
+      box-shadow: 
+        0 4px 15px rgba(0, 0, 0, 0.4),
+        inset 0 2px 4px rgba(255, 255, 255, 0.8),
+        inset 0 -2px 6px rgba(0, 0, 0, 0.15);
+      border: 2px solid #aaa;
+      user-select: none;
+    }
+
+    .click-wheel .wheel-btn {
+      position: absolute;
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      color: #888;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: color 0.15s, transform 0.1s;
+      font-family: 'Courier New', monospace;
+    }
+
+    .click-wheel .wheel-btn:hover {
+      color: #333;
+      transform: scale(1.1);
+    }
+
+    .click-wheel .wheel-btn:active {
+      color: #000;
+      transform: scale(0.95);
+    }
+
+    .wheel-btn.menu-btn {
+      top: 14px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 11px;
+      font-weight: bold;
+      letter-spacing: 1px;
+    }
+
+    .wheel-btn.prev-btn {
+      left: 18px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 16px;
+    }
+
+    .wheel-btn.next-btn {
+      right: 18px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 16px;
+    }
+
+    .wheel-btn.play-btn {
+      bottom: 14px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 16px;
+    }
+
+    .center-btn {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      background: linear-gradient(180deg, #e0e0e0 0%, #c8c8c8 100%);
+      border: 2px solid #aaa;
+      box-shadow: 
+        inset 0 2px 3px rgba(255, 255, 255, 0.7),
+        inset 0 -1px 3px rgba(0, 0, 0, 0.1),
+        0 2px 5px rgba(0, 0, 0, 0.2);
+      cursor: pointer;
+      transition: transform 0.1s;
+    }
+
+    .center-btn:active {
+      transform: translate(-50%, -50%) scale(0.95);
+      box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.3);
+    }
+
+    /* ========== FILE UPLOAD ========== */
+    .upload-section {
+      width: 100%;
+      max-width: 500px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .upload-area {
+      border: 2px dashed #00ffcc;
+      border-radius: 8px;
+      padding: 30px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s;
+      background: rgba(0, 255, 204, 0.05);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .upload-area:hover {
+      background: rgba(0, 255, 204, 0.1);
+      border-color: #ff00ff;
+      box-shadow: 0 0 30px rgba(0, 255, 255, 0.2);
+    }
+
+    .upload-area.dragover {
+      background: rgba(0, 255, 204, 0.2);
+      border-color: #ff00ff;
+      transform: scale(1.02);
+    }
+
+    .upload-area .upload-icon {
+      font-size: 40px;
+      margin-bottom: 10px;
+      display: block;
+    }
+
+    .upload-area .upload-text {
+      font-size: 14px;
+      color: #00ffcc;
+      font-family: 'Courier New', monospace;
+      letter-spacing: 1px;
+    }
+
+    .upload-area .upload-sub {
+      font-size: 11px;
+      color: #ff00ff;
+      margin-top: 6px;
+      font-family: 'Courier New', monospace;
+    }
+
+    .upload-area input[type="file"] {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      opacity: 0;
+      cursor: pointer;
+    }
+
+    /* ========== PLAYLIST ========== */
+    .playlist-section {
+      width: 100%;
+      max-width: 500px;
+    }
+
+    .playlist-header {
+      font-size: 11px;
+      color: #ff00ff;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+      font-family: 'Courier New', monospace;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .playlist-header .track-count {
+      color: #00ffcc;
+      font-size: 10px;
+    }
+
+    .playlist {
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid #00ffcc33;
+      border-radius: 6px;
+      max-height: 250px;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: #00ffcc #0a0a1a;
+    }
+
+    .playlist::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .playlist::-webkit-scrollbar-track {
+      background: #0a0a1a;
+    }
+
+    .playlist::-webkit-scrollbar-thumb {
+      background: #00ffcc;
+      border-radius: 3px;
+    }
+
+    .playlist-empty {
+      padding: 30px;
+      text-align: center;
+      color: #333;
+      font-size: 12px;
+      font-family: 'Courier New', monospace;
+      letter-spacing: 2px;
+    }
+
+    .playlist-item {
+      display: flex;
+      align-items: center;
+      padding: 10px 14px;
+      border-bottom: 1px solid #00ffcc11;
+      cursor: pointer;
+      transition: background 0.2s;
+      gap: 10px;
+    }
+
+    .playlist-item:last-child {
+      border-bottom: none;
+    }
+
+    .playlist-item:hover {
+      background: rgba(0, 255, 204, 0.08);
+    }
+
+    .playlist-item.active {
+      background: rgba(0, 255, 204, 0.15);
+      border-left: 3px solid #ff00ff;
+    }
+
+    .playlist-item .item-icon {
+      font-size: 14px;
+      color: #00ffcc;
+      width: 20px;
+      text-align: center;
+      flex-shrink: 0;
+    }
+
+    .playlist-item.active .item-icon {
+      color: #ff00ff;
+      animation: blink 1s step-end infinite;
+    }
+
+    .playlist-item .item-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .playlist-item .item-title {
+      font-size: 12px;
+      color: #00ffcc;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      font-family: 'Courier New', monospace;
+    }
+
+    .playlist-item .item-artist {
+      font-size: 10px;
+      color: #009999;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      font-family: 'Courier New', monospace;
+    }
+
+    .playlist-item .item-delete {
+      background: none;
+      border: none;
+      color: #ff0055;
+      cursor: pointer;
+      font-size: 14px;
+      padding: 4px;
+      opacity: 0.5;
+      transition: opacity 0.2s;
+      flex-shrink: 0;
+    }
+
+    .playlist-item .item-delete:hover {
+      opacity: 1;
+    }
+
+    /* ========== Y2K DECORATIONS ========== */
+    .y2k-sparkle {
+      position: fixed;
+      pointer-events: none;
+      font-size: 20px;
+      color: #ff00ff;
+      animation: sparkleAnim 2s ease-in-out infinite;
+      z-index: 0;
+    }
+
+    @keyframes sparkleAnim {
+      0%, 100% { opacity: 0; transform: scale(0.5) rotate(0deg); }
+      50% { opacity: 1; transform: scale(1.2) rotate(180deg); }
+    }
+
+    /* Footer */
+    .footer {
+      font-size: 10px;
+      color: #333;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      font-family: 'Courier New', monospace;
+      text-align: center;
+      padding: 20px 0;
+    }
+
+    /* ========== RESPONSIVE ========== */
+    @media (max-width: 480px) {
+      .ipod {
+        width: 100%;
+        padding: 18px 18px 28px;
+      }
+      .ipod-screen {
+        padding: 12px 14px;
+        min-height: 190px;
+      }
+      .click-wheel {
+        width: 160px;
+        height: 160px;
+      }
+      .center-btn {
+        width: 48px;
+        height: 48px;
+      }
+      .header h1 {
+        font-size: 1.8rem;
+      }
+      .album-art-container {
+        width: 60px;
+        height: 60px;
+      }
+      .song-title {
+        font-size: 13px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Y2K Sparkle Decorations -->
+  <div class="y2k-sparkle" style="top: 10%; left: 5%; animation-delay: 0s;">✦</div>
+  <div class="y2k-sparkle" style="top: 20%; right: 8%; animation-delay: 0.5s;">✧</div>
+  <div class="y2k-sparkle" style="bottom: 15%; left: 10%; animation-delay: 1s;">✦</div>
+  <div class="y2k-sparkle" style="bottom: 25%; right: 5%; animation-delay: 1.5s;">✧</div>
+  <div class="y2k-sparkle" style="top: 50%; left: 3%; animation-delay: 0.8s; font-size: 14px;">✦</div>
+  <div class="y2k-sparkle" style="top: 60%; right: 4%; animation-delay: 1.2s; font-size: 16px;">✧</div>
+
+  <div class="app-container">
+
+    <!-- Header -->
+    <div class="header">
+      <h1 class="chrome-text">iPod Web</h1>
+      <div class="subtitle">Now Playing :: Offline Music</div>
+    </div>
+
+    <!-- iPod Device -->
+    <div class="ipod">
+      <!-- Screen -->
+      <div class="ipod-screen">
+        <div class="screen-header">
+          <span>Now Playing</span>
+          <span id="screenStatus">Ready</span>
+        </div>
+
+        <!-- Song Info -->
+        <div class="song-info">
+          <div class="album-art-container" id="albumArtContainer">
+            <span class="no-art">♪</span>
+          </div>
+          <div class="song-meta">
+            <div class="song-title" id="songTitle">No track loaded</div>
+            <div class="song-artist" id="songArtist">—</div>
+            <div class="song-album" id="songAlbum">—</div>
+          </div>
+        </div>
+
+        <!-- Progress Bar -->
+        <div class="progress-container">
+          <span id="currentTime">0:00</span>
+          <div class="progress-bar" id="progressBar">
+            <div class="progress-fill" id="progressFill"></div>
+          </div>
+          <span id="duration">0:00</span>
+        </div>
+
+        <!-- Status Bar -->
+        <div class="status-bar">
+          <div class="playing-indicator">
+            <span class="dot" id="playingDot"></span>
+            <span id="playState">Stopped</span>
+          </div>
+          <span id="trackIndex">1/0</span>
+        </div>
+      </div>
+
+      <!-- Click Wheel -->
+      <div class="click-wheel" id="clickWheel">
+        <button class="wheel-btn menu-btn" id="menuBtn">MENU</button>
+        <button class="wheel-btn prev-btn" id="prevBtn">◀◀</button>
+        <button class="wheel-btn next-btn" id="nextBtn">▶▶</button>
+        <button class="wheel-btn play-btn" id="playBtn">▶ ‖</button>
+        <button class="center-btn" id="centerBtn"></button>
+      </div>
+    </div>
+
+    <!-- Upload Area -->
+    <div class="upload-section">
+      <div class="upload-area" id="uploadArea">
+        <span class="upload-icon">💾</span>
+        <div class="upload-text">Drop your music files here</div>
+        <div class="upload-sub">or click to browse — MP3, WAV, OGG, FLAC, M4A</div>
+        <input type="file" id="fileInput" accept="audio/*" multiple>
+      </div>
+    </div>
+
+    <!-- Playlist -->
+    <div class="playlist-section">
+      <div class="playlist-header">
+        <span>◈ Library</span>
+        <span class="track-count" id="trackCount">0 tracks</span>
+      </div>
+      <div class="playlist" id="playlist">
+        <div class="playlist-empty">NO TRACKS — UPLOAD MUSIC</div>
+      </div>
+    </div>
+
+    <div class="footer">Y2K // OFFLINE MUSIC PLAYER // v1.0</div>
+  </div>
+
+  <!-- Hidden audio element -->
+  <audio id="audioElement" preload="metadata"></audio>
+
+  <script>
+    // ============================================================
+    //  Y2K iPod Web Player — Complete Logic
+    //  Metadata: jsmediatags | Storage: IndexedDB | Audio: HTML5
+    // ============================================================
+
+    (function() {
+      'use strict';
+
+      // ---------- DOM refs ----------
+      const audio = document.getElementById('audioElement');
+      const songTitle = document.getElementById('songTitle');
+      const songArtist = document.getElementById('songArtist');
+      const songAlbum = document.getElementById('songAlbum');
+      const albumArtContainer = document.getElementById('albumArtContainer');
+      const currentTimeEl = document.getElementById('currentTime');
+      const durationEl = document.getElementById('duration');
+      const progressBar = document.getElementById('progressBar');
+      const progressFill = document.getElementById('progressFill');
+      const playState = document.getElementById('playState');
+      const playingDot = document.getElementById('playingDot');
+      const trackIndex = document.getElementById('trackIndex');
+      const screenStatus = document.getElementById('screenStatus');
+      const playlistEl = document.getElementById('playlist');
+      const trackCount = document.getElementById('trackCount');
+      const fileInput = document.getElementById('fileInput');
+      const uploadArea = document.getElementById('uploadArea');
+      const menuBtn = document.getElementById('menuBtn');
+      const prevBtn = document.getElementById('prevBtn');
+      const nextBtn = document.getElementById('nextBtn');
+      const playBtn = document.getElementById('playBtn');
+      const centerBtn = document.getElementById('centerBtn');
+
+      // ---------- State ----------
+      let tracks = [];          // { id, file, name, title, artist, album, picture, duration }
+      let currentIndex = -1;
+      let isPlaying = false;
+      let currentObjectUrl = null;
+      let db = null;
+      const DB_NAME = 'y2k-ipod-player';
+      const DB_VERSION = 1;
+      const STORE_NAME = 'tracks';
+
+      // ============================================================
+      //  1. INDEXEDDB SETUP
+      // ============================================================
+      function initDB() {
+        return new Promise((resolve, reject) => {
+          const request = indexedDB.open(DB_NAME, DB_VERSION);
+
+          request.onerror = () => reject(request.error);
+          request.onsuccess = () => {
+            db = request.result;
+            resolve(db);
+          };
+
+          request.onupgradeneeded = (event) => {
+            const database = event.target.result;
+            if (!database.objectStoreNames.contains(STORE_NAME)) {
+              const store = database.createObjectStore(STORE_NAME, { keyPath: 'id' });
+              store.createIndex('name', 'name', { unique: false });
+            }
+          };
+        });
+      }
+
+      // Save a single track to IndexedDB
+      function saveTrack(track) {
+        return new Promise((resolve, reject) => {
+          const tx = db.transaction(STORE_NAME, 'readwrite');
+          const store = tx.objectStore(STORE_NAME);
+          const request = store.put(track);
+
+          request.onsuccess = () => resolve();
+          request.onerror = () => reject(request.error);
+        });
+      }
+
+      // Load all tracks from IndexedDB
+      function loadAllTracks() {
+        return new Promise((resolve, reject) => {
+          const tx = db.transaction(STORE_NAME, 'readonly');
+          const store = tx.objectStore(STORE_NAME);
+          const request = store.getAll();
+
+          request.onsuccess = () => resolve(request.result || []);
+          request.onerror = () => reject(request.error);
+        });
+      }
+
+      // Delete a track from IndexedDB
+      function deleteTrackFromDB(id) {
+        return new Promise((resolve, reject) => {
+          const tx = db.transaction(STORE_NAME, 'readwrite');
+          const store = tx.objectStore(STORE_NAME);
+          const request = store.delete(id);
+
+          request.onsuccess = () => resolve();
+          request.onerror = () => reject(request.error);
+        });
+      }
+
+      // ============================================================
+      //  2. METADATA PARSING (jsmediatags)
+      // ============================================================
+      function parseMetadata(file) {
+        return new Promise((resolve) => {
+          jsmediatags.read(file, {
+            onSuccess: (tag) => {
+              const tags = tag.tags || {};
+              resolve({
+                title: tags.title || file.name.replace(/\.[^/.]+$/, ''),
+                artist: tags.artist || 'Unknown Artist',
+                album: tags.album || 'Unknown Album',
+                picture: tags.picture || null,
+                duration: 0 // will be filled later
+              });
+            },
+            onError: () => {
+              resolve({
+                title: file.name.replace(/\.[^/.]+$/, ''),
+                artist: 'Unknown Artist',
+                album: 'Unknown Album',
+                picture: null,
+                duration: 0
+              });
+            }
+          });
+        });
+      }
+
+      // Convert jsmediatags picture to blob URL
+      function pictureToUrl(picture) {
+        if (!picture) return null;
+        try {
+          const blob = new Blob([new Uint8Array(picture.data)], { type: picture.format });
+          return URL.createObjectURL(blob);
+        } catch (e) {
+          return null;
+        }
+      }
+
+      // ============================================================
+      //  3. FILE HANDLING
+      // ============================================================
+      async function handleFiles(files) {
+        screenStatus.textContent = 'Loading...';
+        const fileArray = Array.from(files).filter(f => f.type.startsWith('audio/'));
+
+        for (const file of fileArray) {
+          // Check if already exists (by name + size)
+          const exists = tracks.some(t => t.name === file.name && t.size === file.size);
+          if (exists) continue;
+
+          const meta = await parseMetadata(file);
+
+          // Get duration using a temporary audio element
+          const duration = await getAudioDuration(file);
+          meta.duration = duration;
+
+          const track = {
+            id: 'track_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
+            name: file.name,
+            size: file.size,
+            type: file.type,
+            file: file,
+            title: meta.title,
+            artist: meta.artist,
+            album: meta.album,
+            picture: meta.picture,
+            pictureUrl: pictureToUrl(meta.picture),
+            duration: duration
+          };
+
+          tracks.push(track);
+          await saveTrack(track);
+        }
+
+        renderPlaylist();
+        screenStatus.textContent = 'Ready';
+      }
+
+      function getAudioDuration(file) {
+        return new Promise((resolve) => {
+          const tempAudio = document.createElement('audio');
+          const url = URL.createObjectURL(file);
+          tempAudio.preload = 'metadata';
+          tempAudio.src = url;
+
+          const cleanup = () => {
+            URL.revokeObjectURL(url);
+            tempAudio.remove();
+          };
+
+          tempAudio.onloadedmetadata = () => {
+            const dur = tempAudio.duration;
+            cleanup();
+            resolve(isFinite(dur) ? dur : 0);
+          };
+
+          tempAudio.onerror = () => {
+            cleanup();
+            resolve(0);
+          };
+
+          // Timeout fallback
+          setTimeout(() => {
+            cleanup();
+            resolve(0);
+          }, 3000);
+        });
+      }
+
+      // ============================================================
+      //  4. PLAYLIST RENDERING
+      // ============================================================
+      function renderPlaylist() {
+        trackCount.textContent = tracks.length + ' track' + (tracks.length !== 1 ? 's' : '');
+
+        if (tracks.length === 0) {
+          playlistEl.innerHTML = '<div class="playlist-empty">NO TRACKS — UPLOAD MUSIC</div>';
+          return;
+        }
+
+        playlistEl.innerHTML = tracks.map((track, i) => `
+          <div class="playlist-item ${i === currentIndex ? 'active' : ''}" data-index="${i}">
+            <span class="item-icon">${i === currentIndex ? '▶' : '♪'}</span>
+            <div class="item-info">
+              <div class="item-title">${escapeHtml(track.title)}</div>
+              <div class="item-artist">${escapeHtml(track.artist)}</div>
+            </div>
+            <button class="item-delete" data-delete="${i}" title="Remove">✕</button>
+          </div>
+        `).join('');
+
+        // Attach click handlers
+        playlistEl.querySelectorAll('.playlist-item').forEach(item => {
+          item.addEventListener('click', (e) => {
+            if (e.target.classList.contains('item-delete')) return;
+            const idx = parseInt(item.dataset.index);
+            playTrack(idx);
+          });
+        });
+
+        playlistEl.querySelectorAll('.item-delete').forEach(btn => {
+          btn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            const idx = parseInt(btn.dataset.delete);
+            await removeTrack(idx);
+          });
+        });
+
+        updateTrackIndexDisplay();
+      }
+
+      function escapeHtml(str) {
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+      }
+
+      function updateTrackIndexDisplay() {
+        if (tracks.length === 0) {
+          trackIndex.textContent = '0/0';
+        } else {
+          trackIndex.textContent = (currentIndex + 1) + '/' + tracks.length;
+        }
+      }
+
+      async function removeTrack(index) {
+        const track = tracks[index];
+        if (!track) return;
+
+        // If removing currently playing track
+        if (index === currentIndex) {
+          stopPlayback();
+        }
+
+        // Revoke picture URL
+        if (track.pictureUrl) URL.revokeObjectURL(track.pictureUrl);
+
+        tracks.splice(index, 1);
+        await deleteTrackFromDB(track.id);
+
+        if (currentIndex >= tracks.length) currentIndex = tracks.length - 1;
+        if (currentIndex < 0) currentIndex = -1;
+
+        renderPlaylist();
+        if (currentIndex >= 0 && tracks.length > 0) {
+          playTrack(currentIndex);
+        } else {
+          resetDisplay();
+        }
+      }
+
+      // ============================================================
+      //  5. PLAYBACK ENGINE
+      // ============================================================
+      function playTrack(index) {
+        if (index < 0 || index >= tracks.length) return;
+
+        // Stop current playback
+        audio.pause();
+        audio.currentTime = 0;
+        if (currentObjectUrl) {
+          URL.revokeObjectURL(currentObjectUrl);
+          currentObjectUrl = null;
+        }
+
+        currentIndex = index;
+        const track = tracks[index];
+
+        // Create blob URL for playback
+        currentObjectUrl = URL.createObjectURL(track.file);
+        audio.src = currentObjectUrl;
+
+        // Update UI
+        updateNowPlaying(track);
+        renderPlaylist();
+
+        // Play
+        audio.play().then(() => {
+          isPlaying = true;
+          playState.textContent = 'Playing';
+          playingDot.style.display = 'block';
+          playBtn.textContent = '▶ ‖';
+        }).catch((err) => {
+          console.warn('Playback error:', err);
+          isPlaying = false;
+          playState.textContent = 'Error';
+          playingDot.style.display = 'none';
+        });
+      }
+
+      function stopPlayback() {
+        audio.pause();
+        audio.currentTime = 0;
+        isPlaying = false;
+        playState.textContent = 'Stopped';
+        playingDot.style.display = 'none';
+        playBtn.textContent = '▶';
+        progressFill.style.width = '0%';
+        currentTimeEl.textContent = '0:00';
+      }
+
+      function togglePlayPause() {
+        if (currentIndex < 0 || tracks.length === 0) return;
+
+        if (audio.paused || audio.ended) {
+          audio.play().then(() => {
+            isPlaying = true;
+            playState.textContent = 'Playing';
+            playingDot.style.display = 'block';
+            playBtn.textContent = '▶ ‖';
+          }).catch(() => {});
+        } else {
+          audio.pause();
+          isPlaying = false;
+          playState.textContent = 'Paused';
+          playingDot.style.display = 'none';
+          playBtn.textContent = '▶';
+        }
+      }
+
+      function playNext() {
+        if (tracks.length === 0) return;
+        const next = (currentIndex + 1) % tracks.length;
+        playTrack(next);
+      }
+
+      function playPrev() {
+        if (tracks.length === 0) return;
+        // If more than 3 seconds in, restart current track
+        if (audio.currentTime > 3) {
+          audio.currentTime = 0;
+          return;
+        }
+        const prev = (currentIndex - 1 + tracks.length) % tracks.length;
+        playTrack(prev);
+      }
+
+      // ============================================================
+      //  6. NOW PLAYING DISPLAY
+      // ============================================================
+      function updateNowPlaying(track) {
+        songTitle.textContent = track.title || 'Unknown';
+        songArtist.textContent = track.artist || 'Unknown Artist';
+        songAlbum.textContent = track.album || 'Unknown Album';
+
+        // Album art
+        if (track.pictureUrl) {
+          albumArtContainer.innerHTML = `<img src="${track.pictureUrl}" alt="Album Art">`;
+        } else {
+          albumArtContainer.innerHTML = '<span class="no-art">♪</span>';
+        }
+
+        // Duration
+        durationEl.textContent = formatTime(track.duration || 0);
+      }
+
+      function resetDisplay() {
+        songTitle.textContent = 'No track loaded';
+        songArtist.textContent = '—';
+        songAlbum.textContent = '—';
+        albumArtContainer.innerHTML = '<span class="no-art">♪</span>';
+        currentTimeEl.textContent = '0:00';
+        durationEl.textContent = '0:00';
+        progressFill.style.width = '0%';
+        playState.textContent = 'Stopped';
+        playingDot.style.display = 'none';
+        updateTrackIndexDisplay();
+      }
+
+      function formatTime(seconds) {
+        if (!isFinite(seconds) || seconds < 0) return '0:00';
+        const m = Math.floor(seconds / 60);
+        const s = Math.floor(seconds % 60);
+        return m + ':' + (s < 10 ? '0' : '') + s;
+      }
+
+      // ============================================================
+      //  7. AUDIO EVENT LISTENERS
+      // ============================================================
+      audio.addEventListener('timeupdate', () => {
+        if (!audio.duration || !isFinite(audio.duration)) return;
+        const pct = (audio.currentTime / audio.duration) * 100;
+        progressFill.style.width = pct + '%';
+        currentTimeEl.textContent = formatTime(audio.currentTime);
+      });
+
+      audio.addEventListener('loadedmetadata', () => {
+        durationEl.textContent = formatTime(audio.duration);
+      });
+
+      audio.addEventListener('ended', () => {
+        // Auto-advance to next track
+        if (tracks.length > 0) {
+          playNext();
+        } else {
+          stopPlayback();
+        }
+      });
+
+      audio.addEventListener('error', () => {
+        screenStatus.textContent = 'Playback Error';
+        playState.textContent = 'Error';
+        playingDot.style.display = 'none';
+      });
+
+      // ============================================================
+      //  8. CLICK WHEEL CONTROLS
+      // ============================================================
+      menuBtn.addEventListener('click', () => {
+        // Cycle through tracks (like iPod menu navigation)
+        if (tracks.length === 0) return;
+        const next = (currentIndex + 1) % tracks.length;
+        playTrack(next);
+      });
+
+      prevBtn.addEventListener('click', playPrev);
+      nextBtn.addEventListener('click', playNext);
+      playBtn.addEventListener('click', togglePlayPause);
+
+      centerBtn.addEventListener('click', () => {
+        // Center button = play/pause (like iPod select)
+        togglePlayPause();
+      });
+
+      // Progress bar seeking
+      progressBar.addEventListener('click', (e) => {
+        if (!audio.duration || !isFinite(audio.duration)) return;
+        const rect = progressBar.getBoundingClientRect();
+        const pct = (e.clientX - rect.left) / rect.width;
+        audio.currentTime = pct * audio.duration;
+      });
+
+      // ============================================================
+      //  9. FILE UPLOAD HANDLERS
+      // ============================================================
+      uploadArea.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        uploadArea.classList.add('dragover');
+      });
+
+      uploadArea.addEventListener('dragleave', () => {
+        uploadArea.classList.remove('dragover');
+      });
+
+      uploadArea.addEventListener('drop', (e) => {
+        e.preventDefault();
+        uploadArea.classList.remove('dragover');
+        if (e.dataTransfer.files.length > 0) {
+          handleFiles(e.dataTransfer.files);
+        }
+      });
+
+      fileInput.addEventListener('change', () => {
+        if (fileInput.files.length > 0) {
+          handleFiles(fileInput.files);
+          fileInput.value = '';
+        }
+      });
+
+      // ============================================================
+      //  10. KEYBOARD SHORTCUTS
+      // ============================================================
+      document.addEventListener('keydown', (e) => {
+        switch(e.key) {
+          case ' ':
+            e.preventDefault();
+            togglePlayPause();
+            break;
+          case 'ArrowRight':
+            playNext();
+            break;
+          case 'ArrowLeft':
+            playPrev();
+            break;
+          case 'ArrowUp':
+            audio.volume = Math.min(1, audio.volume + 0.1);
+            break;
+          case 'ArrowDown':
+            audio.volume = Math.max(0, audio.volume - 0.1);
+            break;
+        }
+      });
+
+      // ============================================================
+      //  11. INITIALIZATION
+      // ============================================================
+      async function init() {
+        try {
+          await initDB();
+          const saved = await loadAllTracks();
+
+          // Restore tracks from IndexedDB
+          tracks = saved.map(t => ({
+            ...t,
+            pictureUrl: t.picture ? pictureToUrl(t.picture) : null
+          }));
+
+          renderPlaylist();
+          resetDisplay();
+
+          if (tracks.length > 0) {
+            screenStatus.textContent = tracks.length + ' tracks loaded';
+          } else {
+            screenStatus.textContent = 'Ready';
+          }
+        } catch (err) {
+          console.error('Init error:', err);
+          screenStatus.textContent = 'DB Error';
+        }
+      }
+
+      init();
+
+    })();
+  </script>
+</body>
+</html>
